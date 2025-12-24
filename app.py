@@ -11,12 +11,13 @@ from urllib.parse import urlparse, unquote
 from streamlit_autorefresh import st_autorefresh
 
 # =========================================================
-# CẤU HÌNH TỰ ĐỘNG REFRESH (8s)
+# CẤU HÌNH AUTO-REFRESH (8s)
 # =========================================================
 st_autorefresh(interval=8000, limit=None, key="f5updater")
 
 TARGET_KEYWORD = "tập gym"
 
+# DANH SÁCH 12 WEBSITE GYM/SỨC KHỎE THỰC TẾ TẠI VIỆT NAM
 GROUP_URLS = [
     {"name": "Vinmec (Y tế)", "url": "https://www.vinmec.com/vi/tin-tuc/thong-tin-suc-khoe/song-khoe/luu-y-khi-tap-gym-cho-nguoi-moi-bat-dau/"},
     {"name": "California Fitness", "url": "https://cali.vn/blog/kien-thuc-the-hinh/lich-tap-gym-cho-nguoi-moi-bat-dau"},
@@ -52,11 +53,12 @@ def get_trash_talk(winner_name):
         f"🔭 {winner_name} đang dùng kính viễn vọng để tìm đối thủ phía sau.",
         f"🚗 Tốc độ này thì {winner_name} bị bắn tốc độ chắc luôn!",
         f"👑 {winner_name}: 'Ngai vàng này hơi cứng nhưng ngồi cũng êm.'",
-        f"😂 {winner_name}: 'Ai sợ thì đi về, phong cách, phong cách'",
+        f"😂 {winner_name} hỏi: 'Mọi người đang thi SEO hay đang đi dạo vậy?'",
         f"🚧 Xin lỗi, {winner_name} đang thi công công trình 'Top 1', vui lòng đi lối khác.",
         f"🚀 {winner_name} đã bay ra khỏi trái đất, các bạn ở lại mạnh giỏi.",
         f"📢 Thông báo: {winner_name} đã out trình server!",
         f"👻 Các nhóm khác đâu rồi? {winner_name} thấy cô đơn quá.",
+        f"⚡ {winner_name} nhanh như tia chớp, các bạn chậm như rùa.",
         f"🎓 {winner_name} mở lớp dạy SEO cấp tốc, ai đăng ký không?",
         f"🏆 Cúp này {winner_name} cầm hộ thôi, ai giỏi thì lên lấy lại nhé!"
     ]
@@ -65,38 +67,38 @@ def get_trash_talk(winner_name):
 def audit_final(group):
     input_url = group['url']
     data = {
-        "name": group['name'],
-        "score": 100,
+        "name": group['name'], 
+        "score": 100, 
         "issues": {"Tech": [], "Pre": [], "Content": []},
         "redirected": False
     }
-
+    
     AI_TAG = "[ 🤖 AISEO ]"
-
+    
     try:
         # --- 1. GLOBAL CHECK ---
         start = time.time()
         headers = {'User-Agent': 'Mozilla/5.0'}
         try:
-            res = requests.get(input_url, headers=headers, timeout=3)
+            res = requests.get(input_url, headers=headers, timeout=5) 
             load_time = time.time() - start
-            final_url = res.url
+            final_url = res.url 
             if final_url.rstrip('/') != input_url.rstrip('/'):
                 data['redirected'] = True
         except:
-            data['score'] = 0; data['issues']['Tech'].append("💀 Link chết"); return data
+            data['score'] = 0; data['issues']['Tech'].append("💀 Link chết/Chặn Bot"); return data
 
-        if load_time > 0.5:
+        if load_time > 1.2: 
             data['score'] -= 10; data['issues']['Tech'].append(f"🐌 Load chậm ({round(load_time,2)}s)")
 
         parsed = urlparse(final_url)
         path = unquote(parsed.path)
         clean_path = path.strip("/")
-
-        if len(clean_path) > 1:
+        
+        if len(clean_path) > 1: 
             if re.search(r'/\d{4}/\d{2}/', path):
                 data['score'] -= 15; data['issues']['Tech'].append("🔗 URL chứa ngày tháng")
-            if "_" in path:
+            if "_" in path: 
                 data['score'] -= 5; data['issues']['Tech'].append("🔗 URL chứa gạch dưới (_)")
             keyword_slug = slugify(TARGET_KEYWORD)
             if keyword_slug not in path.lower():
@@ -106,7 +108,7 @@ def audit_final(group):
 
         if not soup.find("link", rel=lambda x: x and 'icon' in x.lower()):
             data['score'] -= 2; data['issues']['Tech'].append("🖼️ Thiếu Favicon")
-
+        
         is_uncat = False
         if soup.find('body', class_=re.compile(r'category-uncategorized')): is_uncat = True
         if soup.find('article', class_=re.compile(r'category-uncategorized')): is_uncat = True
@@ -119,7 +121,7 @@ def audit_final(group):
             t_text = title.get_text().strip()
             if not t_text.lower().startswith(TARGET_KEYWORD.lower()):
                 data['score'] -= 10; data['issues']['Pre'].append("❌ Title: Từ khóa không đứng đầu")
-            if not (40 <= len(t_text) <= 70):
+            if not (30 <= len(t_text) <= 85): 
                 data['score'] -= 5; data['issues']['Pre'].append(f"📏 Title sai độ dài ({len(t_text)})")
         else:
             data['score'] -= 20; data['issues']['Pre'].append("☠️ Mất Title")
@@ -144,25 +146,26 @@ def audit_final(group):
                 data['score'] -= 10; data['issues']['Content'].append(f"{AI_TAG} ⛔ H1 thiếu từ khóa '{TARGET_KEYWORD}'")
 
         content_area = (
-            soup.find(class_=re.compile(r'entry-content|post-content|wp-block-post-content'))
-            or soup.find('article')
+            soup.find(class_=re.compile(r'entry-content|post-content|wp-block-post-content|article-content|detail-content|content-detail')) 
+            or soup.find('article') 
             or soup.find('main')
+            or soup.find('div', id='content')
         )
 
         if content_area:
             text = content_area.get_text(" ", strip=True)
             word_count = len(text.split())
-
+            
             if word_count < 800:
                 data['score'] -= 15; data['issues']['Content'].append(f"{AI_TAG} 📝 Bài quá ngắn ({word_count}/800 từ)")
-
+            
             first_100_words = " ".join(text.split()[:100]).lower()
             if TARGET_KEYWORD.lower() not in first_100_words:
                 data['score'] -= 5; data['issues']['Content'].append(f"{AI_TAG} 📍 Từ khóa không xuất hiện ở mở bài")
 
             if word_count > 0:
                 density = (text.lower().count(TARGET_KEYWORD.lower()) / word_count) * 100
-                if density > 3.0:
+                if density > 3.0: 
                     data['score'] -= 20; data['issues']['Content'].append(f"{AI_TAG} ⛔ Spam từ khóa ({round(density,1)}%)")
                 elif density < 0.3:
                     data['score'] -= 10; data['issues']['Content'].append("📉 Quá ít từ khóa")
@@ -185,23 +188,23 @@ def audit_final(group):
             internal = 0
             external = 0
             for l in links:
-                if "http" not in l['href'] or "instawp" in l['href']: internal += 1
+                if "http" not in l['href'] or "instawp" in l['href'] or "vinmec" in l['href'] or "cali" in l['href']: internal += 1
                 else: external += 1
-
+            
             if internal < 2: data['score'] -= 5; data['issues']['Content'].append("🔗 Thiếu Link nội bộ")
             if external < 1: data['score'] -= 5; data['issues']['Content'].append("🌐 Thiếu Link ra ngoài")
 
-            if not content_area.find_all(class_=re.compile(r'wp-block-button')):
+            if not content_area.find_all(class_=re.compile(r'wp-block-button|btn|button')):
                 data['score'] -= 3; data['issues']['Content'].append("🔘 Thiếu Nút bấm")
             if not content_area.find_all(['strong', 'b']):
                 data['score'] -= 3; data['issues']['Content'].append("🎨 Thiếu Bôi đậm")
 
             content_imgs = [img for img in content_area.find_all('img') if int(img.get('width', 100) or 100) > 50]
-            if len(content_imgs) < 3:
+            if len(content_imgs) < 3: 
                 data['score'] -= 5; data['issues']['Content'].append("🖼️ Thêm ảnh vào (Cần >3)")
-
+            
             missing_alt = sum(1 for img in content_imgs if not img.get('alt'))
-            if missing_alt > 0:
+            if missing_alt > 0: 
                 data['score'] -= 5; data['issues']['Content'].append(f"{AI_TAG} 🖼️ {missing_alt} ảnh thiếu Alt")
 
         else:
@@ -220,36 +223,40 @@ st.set_page_config(page_title="SEO Arena Final", layout="wide")
 
 st.markdown("""
 <style>
-    .block-container { padding: 1rem 0.5rem; }
-
+    .block-container { padding: 0.5rem; max-width: 100%; }
+    
     .hero-card {
         background: linear-gradient(135deg, #f1c40f 0%, #f39c12 100%);
-        color: #2c3e50; padding: 15px; border-radius: 12px; text-align: center;
-        margin-bottom: 20px; border: 2px solid #fff; box-shadow: 0 0 15px rgba(241, 196, 15, 0.5);
+        color: #2c3e50; padding: 10px; border-radius: 8px; text-align: center;
+        margin-bottom: 15px; border: 2px solid #fff; box-shadow: 0 0 15px rgba(241, 196, 15, 0.5);
     }
-    .hero-title { font-size: 28px; font-weight: 900; margin-bottom: 5px; text-transform: uppercase; }
-    .hero-quote { font-size: 18px; font-style: italic; font-weight: 700; background: rgba(255,255,255,0.3); padding: 8px; border-radius: 8px; display: inline-block; color: #2d3436; }
+    .hero-title { font-size: 22px; font-weight: 900; margin-bottom: 2px; text-transform: uppercase; }
+    .hero-quote { font-size: 14px; font-style: italic; font-weight: 700; background: rgba(255,255,255,0.3); padding: 5px; border-radius: 6px; display: inline-block; color: #2d3436; }
 
     .seo-card {
-        background-color: #1a1c24; border: 1px solid #444; border-radius: 10px;
-        padding: 12px; height: 380px; display: flex; flex-direction: column;
-        margin-bottom: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+        background-color: #1a1c24; border: 1px solid #444; border-radius: 8px;
+        padding: 10px; height: 320px; display: flex; flex-direction: column;
+        margin-bottom: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.4);
     }
-    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid #444; padding-bottom: 5px; }
-    .group-name { font-size: 18px; font-weight: bold; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40%; }
-    .rank-badge { font-size: 12px; font-weight: bold; padding: 4px 8px; border-radius: 6px; margin: 0 5px; white-space: nowrap; }
-    .score-val { font-size: 26px; font-weight: 900; color: #FFD700; margin-left: auto; }
-    .progress-bg { width: 100%; height: 8px; background-color: #333; border-radius: 4px; margin-bottom: 8px; }
+    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; border-bottom: 1px solid #444; padding-bottom: 3px; }
+    .group-name { font-size: 14px; font-weight: bold; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 50%; }
+    .rank-badge { font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin: 0 5px; white-space: nowrap; }
+    .score-val { font-size: 20px; font-weight: 900; color: #FFD700; margin-left: auto; }
+    .progress-bg { width: 100%; height: 6px; background-color: #333; border-radius: 4px; margin-bottom: 5px; }
+    
     .bug-container { flex-grow: 1; overflow-y: auto; padding-right: 2px; }
     .bug-container::-webkit-scrollbar { display: none; }
-    .cat-header { font-size: 11px; font-weight: bold; color: #888; margin-top: 6px; margin-bottom: 2px; text-transform: uppercase; border-bottom: 1px dashed #444; }
-    .bug-item { font-size: 15px; margin-bottom: 4px; display: block; padding-left: 8px; line-height: 1.4; font-weight: 500; }
-    .err-tech { color: #00cec9; border-left: 3px solid #00cec9; }
-    .err-pre { color: #fab1a0; border-left: 3px solid #fab1a0; }
-    .err-cont { color: #ff7675; border-left: 3px solid #ff7675; }
-    .clean-msg { color: #4cd137; font-weight: bold; text-align: center; font-size: 16px; margin-top: 40px; }
-    .redirect-tag { font-size: 10px; color: #81ecec; border: 1px solid #81ecec; padding: 2px 4px; border-radius: 4px; margin-left: 5px; }
-    .ai-tag { display: inline-block; background-color: #6c5ce7; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; margin-right: 5px; vertical-align: middle; }
+    
+    .cat-header { font-size: 10px; font-weight: bold; color: #888; margin-top: 4px; margin-bottom: 1px; text-transform: uppercase; border-bottom: 1px dashed #444; }
+    .bug-item { font-size: 12px; margin-bottom: 2px; display: block; padding-left: 5px; line-height: 1.3; font-weight: 500; }
+    
+    .err-tech { color: #00cec9; border-left: 2px solid #00cec9; }
+    .err-pre { color: #fab1a0; border-left: 2px solid #fab1a0; }
+    .err-cont { color: #ff7675; border-left: 2px solid #ff7675; }
+    
+    .clean-msg { color: #4cd137; font-weight: bold; text-align: center; font-size: 14px; margin-top: 30px; }
+    .redirect-tag { font-size: 9px; color: #81ecec; border: 1px solid #81ecec; padding: 1px 3px; border-radius: 3px; margin-left: 5px; }
+    .ai-tag { display: inline-block; background-color: #6c5ce7; color: white; padding: 1px 4px; border-radius: 3px; font-size: 9px; font-weight: bold; margin-right: 3px; vertical-align: middle; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -262,6 +269,9 @@ with concurrent.futures.ThreadPoolExecutor() as executor:
         results.append(future.result())
 
 df = pd.DataFrame(results).sort_values('final_score', ascending=False).reset_index(drop=True)
+
+# FIX LỖI CRASH (NaN)
+df['final_score'] = df['final_score'].fillna(0).astype(int)
 
 # --- HERO BANNER (TOP 1) ---
 if len(df) > 0:
@@ -276,24 +286,26 @@ if len(df) > 0:
 
 # --- GRID ---
 def render_card(row_data):
-    score = int(row_data['final_score'])
+    # FIX LỖI CRASH TRONG HÀM RENDER
+    try:
+        score = int(row_data['final_score'])
+    except:
+        score = 0
+        
     name = row_data['name']
     issues = row_data['issues']
     is_redirected = row_data['redirected']
-
+    
     if score >= 90: rank_text = "GOD"; rank_bg = "#f1c40f"; rank_color = "#000"; bar_color = "#f1c40f"
     elif score >= 70: rank_text = "PRO"; rank_bg = "#e67e22"; rank_color = "#fff"; bar_color = "#e67e22"
     elif score >= 50: rank_text = "TẬP SỰ"; rank_bg = "#3498db"; rank_color = "#fff"; bar_color = "#3498db"
     else: rank_text = "GÀ MỜ"; rank_bg = "#555"; rank_color = "#ccc"; bar_color = "#e74c3c"
-
+    
     redirect_html = "<span class='redirect-tag'>🔀 Đã sửa Link</span>" if is_redirected else ""
-
+    
     bugs_html = ""
     total_bugs = sum(len(v) for v in issues.values())
-
-    # LOGIC HIỂN THỊ:
-    # Nếu Perfect (0 lỗi) -> Hiện thông báo Perfect.
-    # Nếu chưa Perfect (dù 95 điểm hay 100 điểm mà vẫn còn warning) -> Vẫn hiện lỗi ra.
+    
     if total_bugs == 0:
         bugs_html = "<div class='clean-msg'>✨ PERFECT 100/100!</div>"
     else:
@@ -301,7 +313,7 @@ def render_card(row_data):
             bugs_html += "<div class='cat-header'>TECHNICAL & URL</div>"
             for bug in issues['Tech']: bugs_html += f"<span class='bug-item err-tech'>• {bug}</span>"
         if issues['Pre']:
-            bugs_html += "<div class='cat-header'>PRE-CLICK</div>"
+            bugs_html += "<div class='cat-header'>PRE-CLICK (CTR)</div>"
             for bug in issues['Pre']: bugs_html += f"<span class='bug-item err-pre'>• {bug}</span>"
         if issues['Content']:
             bugs_html += "<div class='cat-header'>CONTENT & AI SEO</div>"
@@ -329,12 +341,11 @@ def render_card(row_data):
     </div>
     """
 
-# Hiển thị TẤT CẢ các nhóm (Từ Top 1 -> Top 12)
+# Hiển thị tất cả nhóm trong Grid (Compact)
 row1 = st.columns(6)
-for i in range(6): # Nhóm 1-6
+for i in range(6): 
     if i < len(df): row1[i].markdown(render_card(df.iloc[i]), unsafe_allow_html=True)
-
+        
 row2 = st.columns(6)
-for i in range(6, 12): # Nhóm 7-12
-
+for i in range(6, 12): 
     if i < len(df): row2[i-6].markdown(render_card(df.iloc[i]), unsafe_allow_html=True)
