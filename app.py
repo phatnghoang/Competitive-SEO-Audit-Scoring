@@ -1,4 +1,3 @@
-%%writefile app.py
 import streamlit as st
 import requests
 from bs4 import BeautifulSoup
@@ -337,4 +336,5 @@ for i in range(6): # Nhóm 1-6
 
 row2 = st.columns(6)
 for i in range(6, 12): # Nhóm 7-12
+
     if i < len(df): row2[i-6].markdown(render_card(df.iloc[i]), unsafe_allow_html=True)
